@@ -3,10 +3,18 @@ import { toast } from 'sonner';
 
 import { ChainlitAPI, ClientError } from '@chainlit/react-client';
 
-const devServer = 'http://localhost:8000' + getRouterBasename();
-const url = import.meta.env.DEV
-  ? devServer
-  : window.origin + getRouterBasename();
+// For API calls, use og:root_path if available, otherwise fall back to router basename
+const getApiBasePath = () => {
+  const ogTitleMeta = document.querySelector('meta[property="og:root_path"]');
+  if (ogTitleMeta && typeof ogTitleMeta.getAttribute('content') === 'string') {
+    return ogTitleMeta.getAttribute('content')!;
+  }
+  // Fall back to router basename for backwards compatibility
+  return getRouterBasename();
+};
+
+const devServer = 'http://localhost:8000' + getApiBasePath();
+const url = import.meta.env.DEV ? devServer : window.origin + getApiBasePath();
 const serverUrl = new URL(url);
 
 const httpEndpoint = serverUrl.toString();
