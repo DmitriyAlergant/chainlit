@@ -739,7 +739,14 @@ async def oauth_azure_hf_callback(
 
 
 GenericUser = Union[User, PersistedUser, None]
-UserParam = Annotated[GenericUser, Depends(get_current_user)]
+
+
+async def get_user_dependency(request: Request) -> GenericUser:
+    """Wrapper to inject Request dependency for get_current_user."""
+    return await get_current_user(request)
+
+
+UserParam = Annotated[GenericUser, Depends(get_user_dependency)]
 
 
 @router.get("/user")
@@ -1529,25 +1536,25 @@ async def get_storage_file(
 ):
     """Get a file from the storage client if it supports direct downloads."""
     from chainlit.data import get_data_layer
-    
+
     data_layer = get_data_layer()
     if not data_layer or not data_layer.storage_client:
         raise HTTPException(
             status_code=404,
             detail="Storage not configured",
         )
-    
+
     # Validate user authentication
     if not current_user:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    
+
     # Extract thread_id from object_key to validate thread ownership
     # Object key patterns:
     # 1. threads/{thread_id}/files/{element.id} (chainlit_data_layer)
-    # 2. {user_id}/{thread_id}/{element.id} (dynamodb) 
+    # 2. {user_id}/{thread_id}/{element.id} (dynamodb)
     # 3. {user_id}/{element.id}[/{element.name}] (sql_alchemy)
     thread_id = None
-    
+
     # Try to extract thread_id from different patterns
     parts = object_key.split("/")
     if len(parts) >= 3:
@@ -1565,7 +1572,7 @@ async def get_storage_file(
             except HTTPException:
                 # Not a valid thread or user doesn't have access
                 pass
-    
+
     # If we found a thread_id, validate thread ownership
     if thread_id:
         await is_thread_author(current_user.identifier, thread_id)
@@ -1576,10 +1583,10 @@ async def get_storage_file(
             user_id_in_path = parts[0]
             if user_id_in_path != current_user.identifier:
                 raise HTTPException(
-                    status_code=403, 
-                    detail="Access denied: file belongs to different user"
+                    status_code=403,
+                    detail="Access denied: file belongs to different user",
                 )
-    
+
     # Only serve files if storage client implements download_file
     file_data = await data_layer.storage_client.download_file(object_key)
     if file_data is None:
@@ -1587,14 +1594,15 @@ async def get_storage_file(
             status_code=404,
             detail="File not found or storage client does not support direct downloads",
         )
-    
+
     content, mime_type = file_data
-    
+
     from fastapi.responses import Response
+
     return Response(
         content=content,
         media_type=mime_type,
-        headers={"Content-Disposition": f"inline; filename={Path(object_key).name}"}
+        headers={"Content-Disposition": f"inline; filename={Path(object_key).name}"},
     )
 
 
