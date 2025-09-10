@@ -26,6 +26,16 @@ from chainlit.user_session import user_sessions
 WSGIEnvironment: TypeAlias = dict[str, Any]
 
 
+class MockRequest:
+    """Minimal mock request object for WebSocket authentication.
+    Only implements the headers attribute needed by header_auth_callback.
+    """
+
+    def __init__(self, headers: Dict[str, str]):
+        # Store headers as a simple dict
+        self.headers = headers
+
+
 def restore_existing_session(sid, session_id, emit_fn, emit_call_fn):
     """Restore a session from the sessionId provided by the client."""
     if session := WebsocketSession.get_by_id(session_id):
@@ -89,6 +99,25 @@ def _get_token_from_cookie(environ: WSGIEnvironment) -> Optional[str]:
     return None
 
 
+def _extract_headers_from_environ(environ: WSGIEnvironment) -> Dict[str, str]:
+    """Extract HTTP headers from WSGI environ.
+
+    WSGI environ stores headers with HTTP_ prefix, e.g., HTTP_AUTHORIZATION.
+    This function converts them back to standard header format.
+    """
+    headers = {}
+    for key, value in environ.items():
+        if key.startswith("HTTP_"):
+            # Convert HTTP_HEADER_NAME to Header-Name
+            header_name = key[5:].replace("_", "-").title()
+            headers[header_name] = value
+        elif key == "CONTENT_TYPE":
+            headers["Content-Type"] = value
+        elif key == "CONTENT_LENGTH":
+            headers["Content-Length"] = value
+    return headers
+
+
 def _get_token(environ: WSGIEnvironment, auth: dict) -> Optional[str]:
     """Take WSGI environ, return access token."""
     return _get_token_from_cookie(environ)
@@ -98,10 +127,22 @@ async def _authenticate_connection(
     environ,
     auth,
 ) -> Union[Tuple[Union[User, PersistedUser], str], Tuple[None, None]]:
-    if token := _get_token(environ, auth):
-        user = await get_current_user(token=token)
+    token = _get_token(environ, auth)
+
+    # Extract headers from WSGI environ and create a mock request
+    headers = _extract_headers_from_environ(environ)
+    mock_request = MockRequest(headers)
+
+    # Use the regular get_current_user with the mock request
+    try:
+        # Handle optional token parameter - pass empty string if token is None
+        user = await get_current_user(request=mock_request, token=token or "")  # type: ignore[arg-type]
         if user:
-            return user, token
+            # Ensure token is a string when returning a user
+            return user, token or ""
+    except Exception:
+        # Authentication failed
+        pass
 
     return None, None
 

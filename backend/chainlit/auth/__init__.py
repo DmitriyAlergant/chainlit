@@ -1,6 +1,6 @@
 import os
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 
 from chainlit.config import config
 from chainlit.data import get_data_layer
@@ -55,13 +55,10 @@ def get_configuration():
     }
 
 
-async def authenticate_user(token: str = Depends(reuseable_oauth)):
-    try:
-        user = decode_jwt(token)
-    except Exception as e:
-        raise HTTPException(
-            status_code=401, detail="Invalid authentication token"
-        ) from e
+async def _process_user_with_data_layer(user):
+    """Helper function to handle data layer logic for authenticated users."""
+    if not user:
+        return None
 
     if data_layer := get_data_layer():
         # Get or create persistent user if we've a data layer available.
@@ -83,11 +80,46 @@ async def authenticate_user(token: str = Depends(reuseable_oauth)):
     return user
 
 
-async def get_current_user(token: str = Depends(reuseable_oauth)):
+async def authenticate_user(token: str = Depends(reuseable_oauth)):
+    try:
+        user = decode_jwt(token)
+    except Exception as e:
+        raise HTTPException(
+            status_code=401, detail="Invalid authentication token"
+        ) from e
+
+    return await _process_user_with_data_layer(user)
+
+
+async def get_current_user(request: Request, token: str = Depends(reuseable_oauth)):
     if not require_login():
         return None
 
-    return await authenticate_user(token)
+    # Try the standard JWT authentication
+
+    if token:
+        # Note: this check is moot since token == Depends(OAuth2PasswordBearerWithCookie)
+        # and is not None even if there is no actual token available
+        # It won't validate obviously.
+
+        try:
+            return await authenticate_user(token)
+        except Exception:
+            pass  # try other options
+
+    # If no valid JWT token found, but header auth is enabled, try direct header re-authentication
+    if config.code.header_auth_callback:
+        try:
+            user = await config.code.header_auth_callback(request.headers)
+            if user:
+                return await _process_user_with_data_layer(user)
+        except Exception as e:
+            logger.exception("Header authentication failed: %s", e)
+
+    print("get_current_user: no valid authentication found")
+
+    # No valid authentication found
+    raise HTTPException(status_code=401, detail="Authentication required")
 
 
 __all__ = [
