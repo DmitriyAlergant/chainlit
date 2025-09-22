@@ -95,11 +95,24 @@ def mock_data_layer(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 
 @pytest.fixture
 def mock_get_data_layer(mock_data_layer: AsyncMock, test_config: config.ChainlitConfig):
+    from chainlit import data as data_module
+
     # Instantiate mock data layer
     mock_get_data_layer = Mock(return_value=mock_data_layer)
 
-    # Configure it using @data_layer decorator
-    return data_layer(mock_get_data_layer)
+    original_data_layer = data_module._data_layer
+    original_initialized = data_module._data_layer_initialized
+
+    data_module._data_layer = None
+    data_module._data_layer_initialized = False
+
+    data_layer(mock_get_data_layer)
+
+    try:
+        yield mock_get_data_layer
+    finally:
+        data_module._data_layer = original_data_layer
+        data_module._data_layer_initialized = original_initialized
 
 
 @pytest.fixture

@@ -255,6 +255,7 @@ class TestLocalStorageAPIIntegration:
 
         data_layer = Mock()
         data_layer.storage_client = client
+        data_layer.get_element = AsyncMock(return_value=None)
 
         with patch("chainlit.data.get_data_layer", return_value=data_layer):
             yield data_layer
@@ -413,9 +414,7 @@ class TestLocalStorageAPIIntegration:
                 return True
             raise HTTPException(status_code=403, detail="Access denied")
 
-        with patch(
-            "chainlit.server.is_thread_author", side_effect=mock_is_thread_author
-        ):
+        with patch("chainlit.server.is_thread_author", new=mock_is_thread_author):
             # Authorized user should succeed
             def mock_get_authorized_user():
                 return authorized_user
