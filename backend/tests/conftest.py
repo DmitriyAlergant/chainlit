@@ -8,6 +8,7 @@ import pytest
 import pytest_asyncio
 
 from chainlit import config
+import chainlit.data as data_module
 from chainlit.callbacks import data_layer
 from chainlit.context import ChainlitContext, context_var
 from chainlit.data.base import BaseDataLayer
@@ -94,9 +95,17 @@ def mock_data_layer(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 
 
 @pytest.fixture
-def mock_get_data_layer(mock_data_layer: AsyncMock, test_config: config.ChainlitConfig):
+def mock_get_data_layer(
+    mock_data_layer: AsyncMock,
+    test_config: config.ChainlitConfig,
+    monkeypatch: pytest.MonkeyPatch,
+):
     # Instantiate mock data layer
     mock_get_data_layer = Mock(return_value=mock_data_layer)
+
+    # Clear the cached data layer so every test exercises its own factory.
+    monkeypatch.setattr(data_module, "_data_layer", None)
+    monkeypatch.setattr(data_module, "_data_layer_initialized", False)
 
     # Configure it using @data_layer decorator
     return data_layer(mock_get_data_layer)
