@@ -9,7 +9,6 @@ import pytest_asyncio
 
 import chainlit.data as data_module
 from chainlit import config
-import chainlit.data as data_module
 from chainlit.callbacks import data_layer
 from chainlit.context import ChainlitContext, context_var
 from chainlit.data.base import BaseDataLayer
