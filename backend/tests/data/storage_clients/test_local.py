@@ -235,7 +235,7 @@ class TestLocalStorageClient:
             # Download should work
             result = await local_client.download_file(safe_path)
             assert result is not None
-            content, mime_type = result
+            content, _mime_type = result
             assert content == b"content"
 
 
@@ -255,6 +255,7 @@ class TestLocalStorageAPIIntegration:
 
         data_layer = Mock()
         data_layer.storage_client = client
+        data_layer.get_element = AsyncMock(return_value=None)
 
         with patch("chainlit.data.get_data_layer", return_value=data_layer):
             yield data_layer

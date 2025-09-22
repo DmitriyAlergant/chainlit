@@ -1721,7 +1721,6 @@ async def get_storage_file(
     # Use the original filename if available, otherwise fall back to the UUID
     filename = element_name if element_name else Path(object_key).name
 
-    from fastapi.responses import Response
     return Response(
         content=content,
         media_type=mime_type,
