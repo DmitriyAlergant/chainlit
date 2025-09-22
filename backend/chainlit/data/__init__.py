@@ -11,6 +11,14 @@ _data_layer: Optional[BaseDataLayer] = None
 _data_layer_initialized = False
 
 
+def reset_data_layer() -> None:
+    """Reset the cached data layer so it can be re-configured."""
+    global _data_layer, _data_layer_initialized
+
+    _data_layer = None
+    _data_layer_initialized = False
+
+
 def get_data_layer():
     global _data_layer, _data_layer_initialized
 

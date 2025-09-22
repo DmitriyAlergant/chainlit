@@ -8,6 +8,7 @@ from starlette.datastructures import Headers
 from chainlit.action import Action
 from chainlit.config import config
 from chainlit.context import context
+from chainlit.data import reset_data_layer
 from chainlit.data.base import BaseDataLayer
 from chainlit.mcp import McpConnection
 from chainlit.message import Message
@@ -429,6 +430,7 @@ def data_layer(
     # 1. We don't need to support async here and;
     # 2. We don't want to change the API for get_data_layer() to be async, everywhere (at this point).
     config.code.data_layer = func
+    reset_data_layer()
     return func
 
 
