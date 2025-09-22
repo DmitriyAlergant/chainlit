@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 import pytest_asyncio
 
+import chainlit.data as data_module
 from chainlit import config
 import chainlit.data as data_module
 from chainlit.callbacks import data_layer
